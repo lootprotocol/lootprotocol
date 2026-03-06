@@ -122,8 +122,8 @@ make install
 Releases are automated via GoReleaser + GitHub Actions:
 
 ```bash
-git tag cli/v1.0.0
-git push origin cli/v1.0.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 This creates GitHub Release artifacts for all platforms and updates the Homebrew tap.

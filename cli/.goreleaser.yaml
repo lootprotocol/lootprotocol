@@ -1,9 +1,6 @@
 version: 2
 project_name: lootprotocol
 
-monorepo:
-  tag_prefix: cli/
-
 builds:
   - main: ./cmd/lootprotocol
     binary: lootprotocol
