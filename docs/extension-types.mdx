@@ -1,0 +1,461 @@
+---
+title: Extension Types
+description: Detailed specification for each Loot Protocol extension type including file structure, validation rules, and examples.
+---
+
+# Extension Types
+
+Loot Protocol supports three extension types. Each serves a different purpose and has its own file structure, validation rules, and size constraints. This page is the definitive reference for what each type requires.
+
+---
+
+## Skill
+
+A Skill is a single-purpose instruction set that teaches Claude how to perform a specific task. It is the simplest extension type -- at minimum, it is a single `SKILL.md` file with YAML frontmatter and a body of instructions.
+
+### File Structure
+
+```
+my-skill/
+├── SKILL.md          # REQUIRED
+├── reference.md      # optional - detailed reference documentation
+├── examples.md       # optional - usage examples
+└── scripts/          # optional - executable helper scripts
+    └── *.sh|*.py|*.js
+```
+
+### SKILL.md Specification
+
+The `SKILL.md` file has two parts: **frontmatter** and **body**.
+
+#### Frontmatter
+
+YAML frontmatter is enclosed between two `---` markers at the top of the file. The following fields are recognized:
+
+| Field         | Required | Type   | Constraints                                          |
+|---------------|----------|--------|------------------------------------------------------|
+| `description` | Yes      | string | Must be non-empty                                    |
+| `name`        | No       | string | Lowercase letters and hyphens only (kebab-case), max 64 characters |
+
+If `name` is omitted, Loot Protocol derives a slug from the directory name or display name provided during publishing.
+
+#### Body
+
+The body is everything after the closing `---` of the frontmatter. It contains the natural-language instructions that Claude will follow when the skill is invoked.
+
+- **Minimum length:** 10 characters
+- The body should be clear, specific, and actionable
+
+### Validation Rules
+
+| Rule                                      | Error Message                                        |
+|-------------------------------------------|------------------------------------------------------|
+| `SKILL.md` must exist at root             | `SKILL.md not found at archive root`                 |
+| Must have valid YAML frontmatter          | `SKILL.md: invalid YAML frontmatter`                 |
+| `description` field must be present       | `SKILL.md: missing required field "description"`     |
+| `description` must be a non-empty string  | `SKILL.md: "description" must be a non-empty string` |
+| `name` (if present) must be kebab-case    | `SKILL.md: "name" must be lowercase with hyphens only` |
+| `name` (if present) max 64 characters     | `SKILL.md: "name" must be 64 characters or fewer`   |
+| Body must have at least 10 characters     | `SKILL.md: body must contain at least 10 characters` |
+| Total archive size must be under 5 MB     | `Archive exceeds maximum size of 5 MB`               |
+
+### Size Limit
+
+**Maximum archive size: 5 MB**
+
+### Example
+
+```markdown
+---
+description: Performs thorough code reviews focusing on correctness, performance, and maintainability
+name: code-review
+---
+
+When asked to review code, follow these steps:
+
+1. Read the entire file or diff provided
+2. Check for correctness issues:
+   - Logic errors and edge cases
+   - Off-by-one errors
+   - Null/undefined safety
+   - Error handling gaps
+3. Evaluate performance:
+   - Unnecessary allocations or copies
+   - Algorithm complexity (O(n^2) where O(n) is possible)
+   - Missing memoization or caching opportunities
+4. Assess maintainability:
+   - Naming clarity
+   - Function/method length and responsibility
+   - Documentation quality
+5. Provide specific, actionable feedback with line references
+6. Summarize with a severity rating: minor / moderate / major
+```
+
+---
+
+## MCP Server
+
+An MCP Server provides tools and resources to Claude via the Model Context Protocol. It runs as a process (stdio) or as an HTTP service, exposing capabilities that Claude can invoke during a session.
+
+### File Structure
+
+```
+my-mcp-server/
+├── mcp.json          # REQUIRED - server configuration
+├── package.json      # REQUIRED (Node.js) or requirements.txt (Python)
+├── src/              # REQUIRED - at least one source file
+│   └── index.ts
+├── README.md         # REQUIRED
+└── LICENSE           # optional
+```
+
+### mcp.json Specification
+
+The `mcp.json` file defines how to connect to the MCP server.
+
+| Field       | Required    | Type   | Description                              |
+|-------------|-------------|--------|------------------------------------------|
+| `name`      | Yes         | string | The server name                          |
+| `transport` | Yes         | string | One of: `"stdio"`, `"http"`, `"sse"`     |
+| `command`   | If stdio    | string | The command to execute (e.g., `"node"`)  |
+| `args`      | No          | array  | Arguments passed to the command          |
+| `url`       | If http/sse | string | The server URL                           |
+
+#### stdio Transport
+
+The server runs as a child process. Claude communicates with it over stdin/stdout.
+
+```json
+{
+  "name": "database-tools",
+  "transport": "stdio",
+  "command": "node",
+  "args": ["src/index.js"]
+}
+```
+
+#### http Transport
+
+The server runs as an HTTP service. Claude sends requests to the provided URL.
+
+```json
+{
+  "name": "cloud-api-tools",
+  "transport": "http",
+  "url": "https://my-server.example.com/mcp"
+}
+```
+
+#### sse Transport
+
+The server uses Server-Sent Events for streaming communication.
+
+```json
+{
+  "name": "live-data-stream",
+  "transport": "sse",
+  "url": "https://my-server.example.com/mcp/sse"
+}
+```
+
+### Runtime Dependency File
+
+Every MCP Server must include one of:
+
+- **`package.json`** (Node.js) -- must contain `name` and `version` fields
+- **`requirements.txt`** (Python) -- must exist and list dependencies
+
+### Source Directory
+
+The `src/` directory must exist and contain at least one source file. This is where the server implementation lives.
+
+### README
+
+A `README.md` file must exist at the root and be non-empty. It should describe what tools/resources the server provides, how to configure it, and any prerequisites.
+
+### Validation Rules
+
+| Rule                                         | Error Message                                              |
+|----------------------------------------------|------------------------------------------------------------|
+| `mcp.json` must exist                        | `mcp.json not found at archive root`                       |
+| `mcp.json` must be valid JSON                | `mcp.json: invalid JSON`                                   |
+| `name` field must be present                 | `mcp.json: missing required field "name"`                  |
+| `transport` must be present                  | `mcp.json: missing required field "transport"`             |
+| `transport` must be `stdio`, `http`, or `sse`| `mcp.json: "transport" must be "stdio", "http", or "sse"` |
+| `command` required for stdio                 | `mcp.json: "command" required for stdio transport`         |
+| `url` required for http/sse                  | `mcp.json: "url" required for http/sse transport`          |
+| `package.json` or `requirements.txt` must exist | `Missing package.json or requirements.txt`              |
+| `package.json` must have `name` and `version`| `package.json: missing "name" or "version"`                |
+| `src/` directory must exist                  | `src/ directory not found`                                 |
+| `src/` must contain at least one file        | `src/ directory is empty`                                  |
+| `README.md` must exist and be non-empty      | `README.md not found or empty`                             |
+| Total archive size must be under 50 MB       | `Archive exceeds maximum size of 50 MB`                    |
+
+### Size Limit
+
+**Maximum archive size: 50 MB**
+
+### Example
+
+A complete MCP server directory for a database tools server:
+
+**mcp.json:**
+```json
+{
+  "name": "database-tools",
+  "transport": "stdio",
+  "command": "node",
+  "args": ["src/index.js"]
+}
+```
+
+**package.json:**
+```json
+{
+  "name": "database-tools-mcp",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "pg": "^8.11.0"
+  }
+}
+```
+
+**src/index.ts:**
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new McpServer({
+  name: "database-tools",
+  version: "1.0.0",
+});
+
+server.tool("query", { sql: { type: "string" } }, async ({ sql }) => {
+  // Execute query and return results
+  return { content: [{ type: "text", text: "Query results..." }] };
+});
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+**README.md:**
+```markdown
+# Database Tools MCP Server
+
+Provides SQL query tools for PostgreSQL databases.
+
+## Tools
+
+- `query` - Execute a read-only SQL query
+
+## Configuration
+
+Set the `DATABASE_URL` environment variable before starting.
+```
+
+---
+
+## Plugin
+
+A Plugin is the most comprehensive extension type. It is a full bundle that can contain any combination of skills, commands, agents, hooks, MCP server configs, and LSP server configs. Plugins use a `.claude-plugin/plugin.json` manifest to define the package.
+
+### File Structure
+
+```
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json   # REQUIRED - manifest
+├── README.md         # REQUIRED
+├── skills/           # optional - one or more skills
+│   └── review/
+│       └── SKILL.md
+├── commands/         # optional - slash commands
+│   └── review.md
+├── agents/           # optional - subagent definitions
+│   └── reviewer.md
+├── hooks/            # optional - event hooks
+│   └── hooks.json
+├── .mcp.json         # optional - bundled MCP server configuration
+├── .lsp.json         # optional - LSP server configuration
+├── scripts/          # optional - helper scripts
+└── LICENSE           # optional
+```
+
+### plugin.json Specification
+
+The `plugin.json` manifest lives inside the `.claude-plugin/` directory.
+
+| Field         | Required    | Type   | Constraints                             |
+|---------------|-------------|--------|-----------------------------------------|
+| `name`        | Yes         | string | Must be kebab-case (lowercase letters, digits, and hyphens) |
+| `version`     | Recommended | string | Semver format (e.g., `"1.0.0"`)        |
+| `description` | Recommended | string | Short description of the plugin         |
+
+Example:
+
+```json
+{
+  "name": "review-suite",
+  "version": "1.0.0",
+  "description": "Complete code review toolkit with skills, commands, and MCP tools"
+}
+```
+
+### Components
+
+A Plugin must include at least one of the following components:
+
+#### skills/
+
+One or more skill directories, each containing a `SKILL.md` file. Each SKILL.md must independently pass all Skill validation rules (valid frontmatter with `description`, body with at least 10 characters, etc.).
+
+```
+skills/
+├── review/
+│   └── SKILL.md
+└── refactor/
+    └── SKILL.md
+```
+
+#### commands/
+
+Slash command definitions as Markdown files.
+
+```
+commands/
+├── review.md
+└── summarize.md
+```
+
+#### agents/
+
+Subagent definitions as Markdown files.
+
+```
+agents/
+├── reviewer.md
+└── debugger.md
+```
+
+#### hooks/
+
+Event hooks defined in a `hooks.json` file. The file must be valid JSON conforming to the hooks schema.
+
+```
+hooks/
+└── hooks.json
+```
+
+#### .mcp.json
+
+MCP server configuration at the plugin root. Must be valid JSON conforming to the MCP configuration schema.
+
+#### .lsp.json
+
+LSP (Language Server Protocol) server configuration at the plugin root. Must be valid JSON.
+
+### Validation Rules
+
+| Rule                                                | Error Message                                                  |
+|-----------------------------------------------------|----------------------------------------------------------------|
+| `.claude-plugin/plugin.json` must exist             | `.claude-plugin/plugin.json not found`                         |
+| `plugin.json` must be valid JSON                    | `plugin.json: invalid JSON`                                    |
+| `name` must be present                              | `plugin.json: missing required field "name"`                   |
+| `name` must be kebab-case                           | `plugin.json: "name" must be kebab-case`                       |
+| At least one component must exist                   | `Plugin must include at least one component (skills/, commands/, agents/, hooks/, .mcp.json, or .lsp.json)` |
+| Each `skills/*/SKILL.md` must pass Skill validation | `skills/<name>/SKILL.md: <specific error>`                     |
+| `hooks/hooks.json` must be valid JSON               | `hooks/hooks.json: invalid JSON`                               |
+| `.mcp.json` must be valid JSON                      | `.mcp.json: invalid JSON`                                      |
+| `README.md` must exist and be non-empty             | `README.md not found or empty`                                 |
+| All manifest paths must be relative (`./`)          | `plugin.json: paths must be relative`                          |
+| No path traversal (`../`) allowed                   | `Path traversal detected`                                      |
+| Total archive size must be under 100 MB             | `Archive exceeds maximum size of 100 MB`                       |
+
+### Size Limit
+
+**Maximum archive size: 100 MB**
+
+### Example
+
+A complete plugin directory:
+
+**.claude-plugin/plugin.json:**
+```json
+{
+  "name": "review-suite",
+  "version": "1.0.0",
+  "description": "Complete code review toolkit with skills, commands, and MCP tools"
+}
+```
+
+**skills/review/SKILL.md:**
+```markdown
+---
+description: Performs a thorough code review on the provided code or diff
+name: code-review
+---
+
+When asked to review code, analyze the following aspects:
+
+1. Correctness - logic errors, edge cases, null safety
+2. Performance - algorithm complexity, unnecessary allocations
+3. Maintainability - naming, structure, documentation
+4. Security - injection risks, credential exposure, input validation
+
+Provide specific line references and actionable suggestions.
+```
+
+**commands/review.md:**
+```markdown
+---
+description: Run a code review on the current file or selection
+---
+
+Review the current code using the code-review skill. Summarize findings by severity.
+```
+
+**.mcp.json:**
+```json
+{
+  "mcpServers": {
+    "review-tools": {
+      "command": "node",
+      "args": ["./scripts/mcp-server.js"]
+    }
+  }
+}
+```
+
+**README.md:**
+```markdown
+# Review Suite
+
+A comprehensive code review plugin for Claude Code.
+
+## Components
+
+- **Skills**: `code-review` - deep code analysis
+- **Commands**: `/review` - quick review of current file
+- **MCP Tools**: `review-tools` - automated lint and complexity analysis
+
+## Installation
+
+lootprotocol install review-suite
+```
+
+---
+
+## Comparison
+
+| Aspect             | Skill           | MCP Server            | Plugin                    |
+|--------------------|----------------|-----------------------|---------------------------|
+| Purpose            | Teach Claude a task | Provide tools/resources via MCP | Bundle multiple components |
+| Key file           | `SKILL.md`     | `mcp.json`            | `.claude-plugin/plugin.json` |
+| Runtime required   | No             | Yes (Node.js or Python) | Varies by component       |
+| Max archive size   | 5 MB           | 50 MB                 | 100 MB                    |
+| Complexity         | Low            | Medium                | High                      |
+| README required    | No             | Yes                   | Yes                       |
+| Install location   | `~/.claude/skills/` | `~/.claude/mcp-servers/` | `~/.claude/plugins/`   |

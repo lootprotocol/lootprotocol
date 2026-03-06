@@ -1,0 +1,280 @@
+---
+title: Publishing Guide
+description: How to create, validate, and publish extensions to Loot Protocol via the web UI or CLI.
+---
+
+# Publishing Guide
+
+This guide walks you through creating an extension, validating it, and publishing it to Loot Protocol so others can discover and install it.
+
+## Extension Types Overview
+
+Loot Protocol supports three extension types. Each has distinct file structure requirements and validation rules. Choose the one that fits your use case:
+
+| Type       | What It Is                                              | Key File               | Max Size |
+|------------|--------------------------------------------------------|------------------------|----------|
+| **Skill**  | A single-purpose instruction set that teaches Claude how to perform a task | `SKILL.md`             | 5 MB     |
+| **MCP Server** | A server providing tools and resources via the Model Context Protocol | `mcp.json`             | 50 MB    |
+| **Plugin** | A full bundle combining skills, commands, agents, hooks, and MCP/LSP configs | `.claude-plugin/plugin.json` | 100 MB   |
+
+For detailed specs on each type, see the [Extension Types](/docs/extension-types) reference.
+
+## File Structure Requirements
+
+### Skill
+
+```
+my-skill/
+├── SKILL.md          # REQUIRED - instructions with YAML frontmatter
+├── reference.md      # optional
+├── examples.md       # optional
+└── scripts/          # optional
+    └── *.sh|*.py|*.js
+```
+
+**SKILL.md** must contain:
+- YAML frontmatter between `---` markers with a `description` field (required) and optionally a `name` field (lowercase, hyphens only, max 64 chars)
+- A body with at least 10 characters of instruction content
+
+Example SKILL.md:
+
+```markdown
+---
+description: Performs thorough code reviews focusing on correctness, performance, and maintainability
+name: code-review
+---
+
+When asked to review code, follow these steps:
+
+1. Read the entire file or diff provided
+2. Check for correctness issues (logic errors, off-by-one, null safety)
+3. Evaluate performance (unnecessary allocations, O(n^2) where O(n) is possible)
+4. Assess maintainability (naming, structure, documentation)
+5. Provide specific, actionable feedback with line references
+```
+
+### MCP Server
+
+```
+my-mcp-server/
+├── mcp.json          # REQUIRED - server configuration
+├── package.json      # REQUIRED (Node.js) or requirements.txt (Python)
+├── src/              # REQUIRED - at least one source file
+│   └── index.ts
+├── README.md         # REQUIRED
+└── LICENSE           # optional
+```
+
+**mcp.json** must contain:
+- `name` (string)
+- `transport` (`"stdio"`, `"http"`, or `"sse"`)
+- For `stdio` transport: `command` (string), optionally `args` (array)
+- For `http` or `sse` transport: `url` (string)
+
+Example mcp.json (stdio):
+
+```json
+{
+  "name": "database-tools",
+  "transport": "stdio",
+  "command": "node",
+  "args": ["src/index.js"]
+}
+```
+
+Example mcp.json (http):
+
+```json
+{
+  "name": "cloud-api-tools",
+  "transport": "http",
+  "url": "https://my-server.example.com/mcp"
+}
+```
+
+### Plugin
+
+```
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json   # REQUIRED - manifest
+├── README.md         # REQUIRED
+├── skills/           # optional
+│   └── review/SKILL.md
+├── commands/         # optional
+│   └── review.md
+├── agents/           # optional
+│   └── reviewer.md
+├── hooks/            # optional
+│   └── hooks.json
+├── .mcp.json         # optional
+├── .lsp.json         # optional
+└── scripts/          # optional
+```
+
+**plugin.json** must contain:
+- `name` (string, kebab-case)
+- At least one component directory or config file must be present
+
+Example plugin.json:
+
+```json
+{
+  "name": "review-suite",
+  "version": "1.0.0",
+  "description": "Complete code review toolkit with skills, commands, and MCP tools"
+}
+```
+
+## Validation Rules
+
+Every submission is validated before it is accepted. Here is a summary of what gets checked:
+
+### All Types
+- Archive must be a `.zip` or `.tar.gz` file
+- No path traversal (`../`) is allowed in any file paths
+- All paths in manifests must be relative (start with `./`)
+
+### Skill-Specific
+- `SKILL.md` must exist at the archive root
+- Must have valid YAML frontmatter with a non-empty `description`
+- `name` field (if present) must be lowercase, hyphens only, max 64 characters
+- Body must contain at least 10 characters
+- Total size must be under 5 MB
+
+### MCP Server-Specific
+- `mcp.json` must be valid JSON with `name` and `transport`
+- `transport` must be one of: `stdio`, `http`, `sse`
+- For `stdio`: `command` must be present
+- For `http`/`sse`: `url` must be present
+- Either `package.json` (with `name` and `version`) or `requirements.txt` must exist
+- `src/` directory must contain at least one source file
+- `README.md` must exist and be non-empty
+- Total size must be under 50 MB
+
+### Plugin-Specific
+- `.claude-plugin/plugin.json` must be valid JSON with a kebab-case `name`
+- At least one component must be present: `skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`, or `.lsp.json`
+- Any `skills/*/SKILL.md` files must individually pass Skill validation
+- Any `hooks/hooks.json` must be valid JSON matching the hooks schema
+- Any `.mcp.json` must be valid JSON matching the MCP schema
+- `README.md` must exist and be non-empty
+- Total size must be under 100 MB
+
+## Pre-Publish Checklist
+
+Before publishing, verify your extension locally:
+
+```bash
+# Validate your extension without uploading
+lootprotocol validate ./my-extension --type skill
+
+# Or let the CLI auto-detect the type
+lootprotocol validate ./my-extension
+```
+
+The CLI runs the same validation logic the server uses, giving you fast feedback before you submit.
+
+## Publishing via the Web UI
+
+1. **Sign in** at [lootprotocol.com](https://lootprotocol.com) with your GitHub account
+2. Navigate to the **Publish** page
+3. **Select the extension type** (Skill, MCP Server, or Plugin)
+4. **Upload your archive** -- drag and drop a `.zip` or `.tar.gz` file, or use the file picker
+5. **Review validation results** -- the server validates your submission immediately. If there are errors, you see exactly what went wrong (e.g., "Missing SKILL.md", "Invalid plugin.json: name required")
+6. **Review extracted metadata** -- the server shows what it parsed from your manifest
+7. **Fill in listing details**:
+   - Display name
+   - Category (choose from: Development Tools, Productivity, Testing & QA, Security, Database & Backend, DevOps & Deployment, Design & Frontend, Learning & Docs, Integrations, Other)
+   - Tags (up to 5)
+   - Short description
+8. **Submit** -- your package is uploaded to storage, metadata is saved, and the extension is listed immediately
+
+## Publishing via the CLI
+
+### Step 1: Authenticate
+
+```bash
+lootprotocol login
+```
+
+This opens your browser for GitHub OAuth. Credentials are saved to `~/.lootprotocol/config.json`.
+
+### Step 2: Navigate to Your Extension
+
+```bash
+cd my-extension/
+```
+
+### Step 3: Publish
+
+```bash
+lootprotocol publish --type skill
+```
+
+The CLI will:
+1. Package the current directory as a `.tar.gz` archive
+2. Run local validation (same rules as the server)
+3. If validation passes, prompt you for metadata (display name, category, tags)
+4. Upload to the Loot Protocol API
+5. The server re-validates and stores the package
+
+If you want to skip the interactive prompts, create a `lootprotocol.json` file in your extension root:
+
+```json
+{
+  "type": "skill",
+  "displayName": "Code Review Assistant",
+  "category": "development-tools",
+  "tags": ["code-review", "quality", "best-practices"]
+}
+```
+
+Then publish without prompts:
+
+```bash
+lootprotocol publish
+```
+
+### Step 4: Verify
+
+After publishing, your extension is live immediately. Verify it:
+
+```bash
+lootprotocol info my-extension-slug
+```
+
+Or visit `https://lootprotocol.com/extensions/my-extension-slug` in your browser.
+
+## Updating an Existing Extension
+
+To publish a new version, run `lootprotocol publish` again from the updated extension directory. The server recognizes the extension by its slug and creates a new version. Previous versions are retained (immutable) in storage.
+
+## Troubleshooting
+
+### "Could not auto-detect extension type"
+
+The CLI looks for `SKILL.md`, `mcp.json`, or `.claude-plugin/plugin.json` to determine the type. If none are found, specify it explicitly:
+
+```bash
+lootprotocol publish --type mcp_server
+```
+
+### "Validation failed" errors
+
+Run `lootprotocol validate` to see specific error messages. Common issues:
+- Missing required files (SKILL.md, mcp.json, plugin.json)
+- Invalid YAML frontmatter in SKILL.md
+- Missing `description` in frontmatter
+- `name` field not in kebab-case
+- Empty README.md
+- Archive exceeds size limit
+
+### "Authentication required"
+
+Your token may have expired. Run `lootprotocol login` again to re-authenticate.
+
+## Next Steps
+
+- [Extension Types](/docs/extension-types) -- detailed specification for each extension type
+- [CLI Reference](/docs/cli-reference) -- complete documentation for all CLI commands

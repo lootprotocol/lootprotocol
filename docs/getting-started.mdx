@@ -1,0 +1,134 @@
+---
+title: Getting Started
+description: Learn what Loot Protocol is, how to sign up, browse the marketplace, and install your first AI extension.
+---
+
+# Getting Started with Loot Protocol
+
+Loot Protocol is the community marketplace for AI agent extensions. It lets you discover, install, and publish extensions for Claude Code -- including skills, MCP servers, and full plugins. Think of it as a package registry purpose-built for the AI agent ecosystem.
+
+Whether you are a developer looking to enhance your Claude Code workflow or a creator who wants to share tools with the community, Loot Protocol gives you a single place to do it.
+
+## How It Works
+
+Loot Protocol connects three types of users through a shared registry:
+
+- **Publishers** upload extension packages (skills, MCP servers, plugins) via the web UI or CLI
+- **Users** browse the marketplace, then install extensions via the web, CLI, or directly from within Claude Code
+- **The platform** validates every submission against strict structural rules, hosts packages on S3, and tracks downloads
+
+All users authenticate with GitHub via OAuth. There are no separate accounts to manage.
+
+## Sign Up via GitHub
+
+Loot Protocol uses GitHub as its sole identity provider. To create an account:
+
+1. Visit [lootprotocol.com](https://lootprotocol.com) and click **Sign in with GitHub**
+2. Authorize Loot Protocol to access your GitHub profile
+3. You are redirected back to Loot Protocol with your profile created automatically
+
+Your GitHub username becomes your Loot Protocol identity. Any user can browse the catalog without signing in, but authentication is required to install or publish extensions.
+
+## Browse the Marketplace
+
+Once signed in, head to the **Explore** page to discover extensions:
+
+- **Search** by keyword across names, descriptions, and tags
+- **Filter** by category (Development Tools, Productivity, Testing & QA, Security, and more)
+- **Filter** by extension type (Skill, MCP Server, Plugin)
+- **Sort** by popularity (download count) or recency
+
+Each extension listing shows its type, description, publisher, download count, and a one-line install command.
+
+## Install Your First Extension
+
+### Via the Web
+
+1. Find an extension on the Explore page
+2. Click into its detail page to read the README and review metadata
+3. Copy the install command shown on the page
+4. Run it in your terminal
+
+### Via the CLI
+
+Install the Loot Protocol CLI globally:
+
+```bash
+npm install -g lootprotocol
+```
+
+Authenticate once:
+
+```bash
+lootprotocol login
+```
+
+This opens your browser for GitHub OAuth. Once authorized, your credentials are stored locally at `~/.lootprotocol/config.json`.
+
+Search for extensions:
+
+```bash
+lootprotocol search "code review"
+```
+
+Example output:
+
+```
+┌──────────────────────┬─────────┬──────────────────────────────────────┬───────────┐
+│ Name                 │ Type    │ Description                          │ Downloads │
+├──────────────────────┼─────────┼──────────────────────────────────────┼───────────┤
+│ code-review          │ skill   │ Thorough code review with best...    │ 1,204     │
+│ review-bot           │ plugin  │ Automated PR review agent            │ 843       │
+│ lint-mcp             │ mcp     │ MCP server for multi-linter...       │ 512       │
+└──────────────────────┴─────────┴──────────────────────────────────────┴───────────┘
+```
+
+Get detailed info about a specific extension:
+
+```bash
+lootprotocol info code-review
+```
+
+Install it:
+
+```bash
+lootprotocol install code-review
+```
+
+The CLI downloads the package, extracts it to the appropriate directory under `~/.claude/`, and confirms the installation:
+
+```
+✔ Installed Code Review Assistant to /Users/you/.claude/skills/code-review
+
+  Extension type: skill
+  Location: /Users/you/.claude/skills/code-review
+
+  Restart your Claude Code session to pick up the new extension.
+```
+
+### Via Claude Code (In-Agent)
+
+If you have the Loot Protocol plugin installed in Claude Code, you can search and install directly from your agent session:
+
+```
+/lootprotocol:search code review
+/lootprotocol:install code-review
+```
+
+## What Gets Installed Where
+
+Extensions are extracted to type-specific directories under `~/.claude/`:
+
+| Extension Type | Install Directory           |
+|----------------|-----------------------------|
+| Skill          | `~/.claude/skills/<slug>`   |
+| MCP Server     | `~/.claude/mcp-servers/<slug>` |
+| Plugin         | `~/.claude/plugins/<slug>`  |
+
+After installation, restart your Claude Code session to load the new extension.
+
+## Next Steps
+
+- [Extension Types](/docs/extension-types) -- understand the three kinds of extensions you can build and install
+- [Publishing Guide](/docs/publishing-guide) -- learn how to create and publish your own extensions
+- [CLI Reference](/docs/cli-reference) -- full documentation for every CLI command

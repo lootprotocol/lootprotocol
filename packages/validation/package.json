@@ -1,0 +1,32 @@
+{
+  "name": "@lootprotocol/validation",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
+  },
+  "dependencies": {
+    "@lootprotocol/shared-types": "workspace:*",
+    "adm-zip": "^0.5.16",
+    "gray-matter": "^4.0.3",
+    "semver": "^7.6.3",
+    "tar": "^7.4.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/tar": "^6.1.13",
+    "vitest": "^3.0.0",
+    "typescript": "^5.7.3"
+  }
+}

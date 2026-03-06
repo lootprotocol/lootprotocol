@@ -1,0 +1,409 @@
+---
+title: CLI Reference
+description: Complete reference for all Loot Protocol CLI commands including login, search, info, validate, install, and publish.
+---
+
+# CLI Reference
+
+The Loot Protocol CLI (`lootprotocol`) lets you interact with the Loot Protocol marketplace directly from your terminal. It supports authentication, searching, inspecting, validating, installing, and publishing extensions.
+
+## Installation
+
+```bash
+npm install -g lootprotocol
+```
+
+Verify the installation:
+
+```bash
+lootprotocol --version
+```
+
+## Configuration
+
+The CLI stores its configuration at `~/.lootprotocol/config.json`. This file contains your authentication tokens and API URL. You should not need to edit it manually.
+
+Default API URL: `https://lootprotocol.com/api`
+
+---
+
+## Commands
+
+### `lootprotocol login`
+
+Authenticate with Loot Protocol using your GitHub account.
+
+**Usage:**
+
+```bash
+lootprotocol login
+```
+
+**Description:**
+
+Opens your default browser and redirects you to the GitHub OAuth flow via Cognito. Once you authorize, the CLI receives and stores your access token and refresh token locally at `~/.lootprotocol/config.json`.
+
+If you are already logged in, the command prints your current identity and exits without re-authenticating.
+
+**Examples:**
+
+```bash
+# First-time login
+lootprotocol login
+# => ✔ Logged in as Jane Smith
+
+# Already authenticated
+lootprotocol login
+# => ✔ Already logged in as Jane Smith
+```
+
+**Notes:**
+- Authentication is required for `install` and `publish` commands
+- `search` and `info` work without authentication (the catalog is public)
+- Tokens are stored in `~/.lootprotocol/config.json`
+
+---
+
+### `lootprotocol search`
+
+Search for extensions on the Loot Protocol marketplace.
+
+**Usage:**
+
+```bash
+lootprotocol search <query> [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `query`  | Yes      | Search term to match against extension names, descriptions, and tags |
+
+**Options:**
+
+| Option                   | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| `-c, --category <category>` | Filter results by category (e.g., `development-tools`, `productivity`) |
+| `-t, --type <type>`     | Filter by extension type: `skill`, `mcp_server`, or `plugin` |
+| `-l, --limit <n>`       | Maximum number of results to return (default: `20`)   |
+
+**Examples:**
+
+```bash
+# Basic search
+lootprotocol search "code review"
+
+# Filter by type
+lootprotocol search "database" --type mcp_server
+
+# Filter by category with a custom limit
+lootprotocol search "testing" --category testing-qa --limit 5
+
+# Combine filters
+lootprotocol search "deploy" --type plugin --category devops-infrastructure
+```
+
+**Output:**
+
+Results are displayed in a table:
+
+```
+┌──────────────────────┬─────────┬──────────────────────────────────────┬───────────┐
+│ Name                 │ Type    │ Description                          │ Downloads │
+├──────────────────────┼─────────┼──────────────────────────────────────┼───────────┤
+│ code-review          │ skill   │ Thorough code review with best...    │ 1,204     │
+│ review-bot           │ plugin  │ Automated PR review agent            │ 843       │
+└──────────────────────┴─────────┴──────────────────────────────────────┴───────────┘
+
+Showing 2 of 2 results.
+```
+
+---
+
+### `lootprotocol info`
+
+Show detailed information about a specific extension.
+
+**Usage:**
+
+```bash
+lootprotocol info <slug>
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `slug`   | Yes      | The unique slug identifier of the extension |
+
+**Examples:**
+
+```bash
+lootprotocol info code-review
+```
+
+**Output:**
+
+Displays extension metadata including name, type, description, publisher, version, download count, category, tags, and the install command.
+
+```
+code-review
+───────────
+  Type:        skill
+  Publisher:   @janedev
+  Version:     1.2.0
+  Downloads:   1,204
+  Category:    development-tools
+  Tags:        code-review, quality, best-practices
+
+  Description:
+  Performs thorough code reviews focusing on correctness,
+  performance, and maintainability.
+
+  Install:
+  lootprotocol install code-review
+```
+
+---
+
+### `lootprotocol validate`
+
+Validate an extension package locally without publishing it. Runs the same validation logic that the server uses, giving you fast feedback.
+
+**Usage:**
+
+```bash
+lootprotocol validate [path] [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `path`   | No       | Path to the extension directory or archive file. Defaults to `.` (current directory) |
+
+**Options:**
+
+| Option               | Description                                                  |
+|----------------------|--------------------------------------------------------------|
+| `-t, --type <type>`  | Extension type: `skill`, `mcp_server`, or `plugin`. If omitted, the CLI auto-detects the type based on the presence of `SKILL.md`, `mcp.json`, or `.claude-plugin/plugin.json` |
+
+**Examples:**
+
+```bash
+# Validate current directory (auto-detect type)
+lootprotocol validate
+
+# Validate a specific directory
+lootprotocol validate ./my-skill
+
+# Validate with an explicit type
+lootprotocol validate ./my-server --type mcp_server
+
+# Validate an archive file
+lootprotocol validate ./my-plugin.tar.gz --type plugin
+```
+
+**Output (passing):**
+
+```
+Validation Results
+──────────────────
+  Type:    skill
+  Status:  ✔ Valid
+
+  Checks:
+  ✔ SKILL.md exists
+  ✔ Valid YAML frontmatter
+  ✔ Description field present
+  ✔ Body has sufficient content (342 chars)
+  ✔ Archive size within limit (12 KB / 5 MB)
+```
+
+**Output (failing):**
+
+```
+Validation Results
+──────────────────
+  Type:    mcp_server
+  Status:  ✘ Invalid
+
+  Errors:
+  ✘ mcp.json: missing required field "transport"
+  ✘ src/ directory is empty — at least one source file required
+  ✔ package.json exists with name and version
+  ✔ README.md exists and is non-empty
+```
+
+**Notes:**
+- Auto-detection checks for `SKILL.md` (skill), `mcp.json` (mcp_server), or `.claude-plugin/plugin.json` (plugin)
+- If a directory is provided, the CLI packages it as a `.tar.gz` in memory before validating
+- No authentication is required; validation runs entirely locally
+
+---
+
+### `lootprotocol install`
+
+Download and install an extension from Loot Protocol.
+
+**Usage:**
+
+```bash
+lootprotocol install <slug>
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `slug`   | Yes      | The unique slug identifier of the extension to install |
+
+**Examples:**
+
+```bash
+lootprotocol install code-review
+```
+
+**Output:**
+
+```
+✔ Installed Code Review Assistant to /Users/you/.claude/skills/code-review
+
+  Extension type: skill
+  Location: /Users/you/.claude/skills/code-review
+
+  Restart your Claude Code session to pick up the new extension.
+```
+
+**Behavior:**
+
+1. Fetches extension metadata from the API to determine the extension type
+2. Requests an authenticated download URL (S3 pre-signed URL)
+3. Downloads the `.tar.gz` archive
+4. Extracts it to the appropriate directory:
+   - Skills: `~/.claude/skills/<slug>`
+   - MCP Servers: `~/.claude/mcp-servers/<slug>`
+   - Plugins: `~/.claude/plugins/<slug>`
+5. Confirms the installation
+
+**Notes:**
+- **Authentication required.** Run `lootprotocol login` first
+- Downloads are tracked per user and per extension (for download counts and install history)
+- Restart your Claude Code session after installing a new extension
+
+---
+
+### `lootprotocol publish`
+
+Package and publish an extension to the Loot Protocol marketplace.
+
+**Usage:**
+
+```bash
+lootprotocol publish [path] [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `path`   | No       | Path to the extension directory or archive file. Defaults to `.` (current directory) |
+
+**Options:**
+
+| Option               | Description                                                  |
+|----------------------|--------------------------------------------------------------|
+| `-t, --type <type>`  | Extension type: `skill`, `mcp_server`, or `plugin`. If omitted, auto-detected from file structure |
+
+**Examples:**
+
+```bash
+# Publish from current directory (auto-detect type)
+cd my-skill/
+lootprotocol publish
+
+# Publish a specific directory with explicit type
+lootprotocol publish ./my-server --type mcp_server
+
+# Publish an archive file
+lootprotocol publish ./my-plugin.tar.gz --type plugin
+```
+
+**Behavior:**
+
+1. If the path is a directory, packages it as a `.tar.gz` archive
+2. Runs local validation (same rules as the server)
+3. If validation fails, prints errors and exits
+4. If validation passes, prompts for metadata:
+   - **Display name** (defaults to the name extracted from the manifest)
+   - **Category** (interactive selection)
+   - **Tags** (comma-separated, up to 5)
+5. Uploads the archive and metadata to the Loot Protocol API
+6. The server re-validates and stores the package
+7. Prints the extension URL and install command
+
+**Output:**
+
+```
+✔ Packaged
+
+Running local validation...
+Validation Results
+──────────────────
+  Type:    skill
+  Status:  ✔ Valid
+  ...
+
+? Display name: Code Review Assistant
+? Category: development-tools
+? Tags (comma-separated): code-review, quality
+
+✔ Published!
+
+  Code Review Assistant v1.0.0
+  URL: https://lootprotocol.com/extensions/code-review
+  Install: lootprotocol install code-review
+```
+
+**Skip Prompts with lootprotocol.json:**
+
+Place a `lootprotocol.json` file in your extension root to provide metadata defaults:
+
+```json
+{
+  "type": "skill",
+  "displayName": "Code Review Assistant",
+  "category": "development-tools",
+  "tags": ["code-review", "quality", "best-practices"]
+}
+```
+
+**Notes:**
+- **Authentication required.** Run `lootprotocol login` first
+- Any user who publishes automatically becomes a publisher
+- Re-publishing from the same extension directory creates a new version (previous versions are retained)
+- The server performs its own validation even after local validation passes
+
+---
+
+## Global Options
+
+These options are available on all commands:
+
+| Option           | Description                    |
+|------------------|--------------------------------|
+| `-V, --version`  | Print the CLI version and exit |
+| `-h, --help`     | Display help for a command     |
+
+```bash
+lootprotocol --help
+lootprotocol search --help
+```
+
+## Exit Codes
+
+| Code | Meaning                                      |
+|------|----------------------------------------------|
+| `0`  | Success                                      |
+| `1`  | Error (validation failure, API error, auth failure, etc.) |

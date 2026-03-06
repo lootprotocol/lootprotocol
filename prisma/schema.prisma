@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ExtensionType {
+  skill
+  mcp_server
+  plugin
+}
+
+enum UserRole {
+  user
+  publisher
+}
+
+model Profile {
+  id             String    @id @default(uuid()) @db.Uuid
+  cognitoSub     String    @unique @map("cognito_sub")
+  username       String    @unique
+  email          String?   @unique
+  authProvider   String    @default("github") @map("auth_provider")
+  githubUsername  String?   @unique @map("github_username")
+  githubId       BigInt?   @unique @map("github_id")
+  googleId       String?   @unique @map("google_id")
+  displayName    String?   @map("display_name")
+  avatarUrl      String?   @map("avatar_url")
+  bio            String?
+  websiteUrl     String?   @map("website_url")
+  role           UserRole  @default(user)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  extensions     Extension[]
+  downloads      DownloadEvent[]
+  installs       UserInstall[]
+
+  @@map("profiles")
+}
+
+model Extension {
+  id              String        @id @default(uuid()) @db.Uuid
+  slug            String        @unique
+  name            String
+  displayName     String?       @map("display_name")
+  description     String
+  extensionType   ExtensionType @map("extension_type")
+  category        String
+  tags            String[]      @default([])
+  latestVersion   String        @default("1.0.0") @map("latest_version")
+  readmeHtml      String?       @map("readme_html")
+  readmeText      String?       @map("readme_text")
+  downloadCount   Int           @default(0) @map("download_count")
+  publisherId     String        @map("publisher_id") @db.Uuid
+  isPublished     Boolean       @default(true) @map("is_published")
+  isFeatured      Boolean       @default(false) @map("is_featured")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  publisher       Profile       @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  versions        ExtensionVersion[]
+  downloads       DownloadEvent[]
+  installs        UserInstall[]
+
+  @@map("extensions")
+}
+
+model ExtensionVersion {
+  id               String    @id @default(uuid()) @db.Uuid
+  extensionId      String    @map("extension_id") @db.Uuid
+  version          String
+  s3Key            String    @map("s3_key")
+  packageSizeBytes Int       @map("package_size_bytes")
+  metadata         Json?
+  changelog        String?
+  downloadCount    Int       @default(0) @map("download_count")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  extension        Extension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  downloads        DownloadEvent[]
+  installs         UserInstall[]
+
+  @@unique([extensionId, version])
+  @@map("extension_versions")
+}
+
+model DownloadEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  extensionId  String    @map("extension_id") @db.Uuid
+  versionId    String?   @map("version_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  source       String    @default("web")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  extension    Extension        @relation(fields: [extensionId], references: [id])
+  version      ExtensionVersion? @relation(fields: [versionId], references: [id])
+  user         Profile          @relation(fields: [userId], references: [id])
+
+  @@index([extensionId])
+  @@index([createdAt])
+  @@map("download_events")
+}
+
+model UserInstall {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  extensionId  String    @map("extension_id") @db.Uuid
+  versionId    String    @map("version_id") @db.Uuid
+  installedAt  DateTime  @default(now()) @map("installed_at")
+
+  user         Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extension    Extension        @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  version      ExtensionVersion @relation(fields: [versionId], references: [id])
+
+  @@unique([userId, extensionId])
+  @@map("user_installs")
+}
