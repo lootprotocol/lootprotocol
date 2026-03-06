@@ -36,8 +36,13 @@ function resolveAuthProvider(claims: CognitoClaims): AuthProvider {
 export async function verifyCognitoToken(token: string): Promise<AuthUser> {
   const { payload } = await jwtVerify(token, getJWKS(), {
     issuer: COGNITO_ISSUER,
-    audience: COGNITO_CLIENT_ID,
   });
+
+  // Cognito access tokens use "client_id" instead of "aud"
+  const clientId = payload.client_id ?? payload.aud;
+  if (clientId !== COGNITO_CLIENT_ID) {
+    throw new Error('Token client_id mismatch');
+  }
 
   const claims = payload as unknown as CognitoClaims;
   const authProvider = resolveAuthProvider(claims);
