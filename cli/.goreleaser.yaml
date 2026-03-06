@@ -21,6 +21,9 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+      - -X 'github.com/lootprotocol/lootprotocol/internal/auth.defaultCognitoDomain={{ .Env.COGNITO_DOMAIN }}'
+      - -X 'github.com/lootprotocol/lootprotocol/internal/auth.defaultCognitoClientID={{ .Env.COGNITO_CLIENT_ID }}'
+      - -X 'github.com/lootprotocol/lootprotocol/internal/config.defaultAPIURL={{ .Env.API_URL }}'
 
 archives:
   - format: tar.gz

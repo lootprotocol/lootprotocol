@@ -224,7 +224,7 @@ type GetMeResponse struct {
 
 // GetMe fetches the authenticated user's profile.
 func (c *Client) GetMe() (*types.Profile, error) {
-	data, err := c.requestJSON("GET", "/auth/me", nil, nil)
+	data, err := c.requestJSON("GET", "/users/me", nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -124,7 +124,7 @@ func TestExchangeCode(t *testing.T) {
 
 func TestGetMe(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/auth/me", r.URL.Path)
+		assert.Equal(t, "/users/me", r.URL.Path)
 		assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
 		json.NewEncoder(w).Encode(GetMeResponse{
 			Data: types.Profile{ID: "1", Username: "alice"},

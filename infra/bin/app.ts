@@ -41,12 +41,14 @@ const authStack = new AuthStack(app, `LootProtocol-Auth-${stage}`, {
     'https://www.lootprotocol.com/auth/callback',
     'https://d20b1ep30zrqwn.cloudfront.net/auth/callback',
     'http://localhost:3000/auth/callback',
+    'http://localhost:18432/callback',
   ],
   logoutUrls: [
     'https://lootprotocol.com',
     'https://www.lootprotocol.com',
     'https://d20b1ep30zrqwn.cloudfront.net',
     'http://localhost:3000',
+    'http://localhost:18432',
   ],
   domainPrefix: `lootprotocol-${stage}`,
 });

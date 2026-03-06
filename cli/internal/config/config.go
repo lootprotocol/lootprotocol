@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 )
 
-const defaultAPIURL = "https://lootprotocol.com/api"
+// defaultAPIURL can be overridden at build time via ldflags.
+var defaultAPIURL = "https://www.lootprotocol.com/api"
 
 // User represents the authenticated user stored in config.
 type User struct {

@@ -15,9 +15,13 @@ import (
 	"github.com/lootprotocol/lootprotocol/internal/config"
 )
 
+// defaultCognitoDomain and defaultCognitoClientID can be overridden at build time via ldflags.
+var defaultCognitoDomain = "https://lootprotocol-dev.auth.us-east-1.amazoncognito.com"
+var defaultCognitoClientID = ""
+
 var (
-	cognitoDomain   = envOrDefault("COGNITO_DOMAIN", "https://auth.lootprotocol.com")
-	cognitoClientID = os.Getenv("COGNITO_CLIENT_ID")
+	cognitoDomain   = envOrDefault("COGNITO_DOMAIN", defaultCognitoDomain)
+	cognitoClientID = envOrDefault("COGNITO_CLIENT_ID", defaultCognitoClientID)
 )
 
 func envOrDefault(key, def string) string {
@@ -34,13 +38,16 @@ type LoginResult struct {
 
 // PerformLogin starts an OAuth2 browser-based login flow.
 func PerformLogin(apiURL string) (*LoginResult, error) {
-	// Start local HTTP server on a random port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start local server: %w", err)
+	if cognitoClientID == "" {
+		return nil, fmt.Errorf("COGNITO_CLIENT_ID is not set; set it via environment variable or build with ldflags")
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	redirectURI := fmt.Sprintf("http://localhost:%d/callback", port)
+
+	// Start local HTTP server on a fixed port for Cognito callback
+	listener, err := net.Listen("tcp", "127.0.0.1:18432")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start local server on port 18432: %w", err)
+	}
+	redirectURI := "http://localhost:18432/callback"
 
 	resultCh := make(chan *LoginResult, 1)
 	errCh := make(chan error, 1)

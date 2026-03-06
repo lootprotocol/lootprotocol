@@ -6,7 +6,10 @@ BINARY  := lootprotocol
 LDFLAGS := -s -w \
 	-X main.version=$(VERSION) \
 	-X main.commit=$(COMMIT) \
-	-X main.date=$(DATE)
+	-X main.date=$(DATE) \
+	-X 'github.com/lootprotocol/lootprotocol/internal/auth.defaultCognitoDomain=$(COGNITO_DOMAIN)' \
+	-X 'github.com/lootprotocol/lootprotocol/internal/auth.defaultCognitoClientID=$(COGNITO_CLIENT_ID)' \
+	-X 'github.com/lootprotocol/lootprotocol/internal/config.defaultAPIURL=$(API_URL)'
 
 .PHONY: build test lint install clean
 

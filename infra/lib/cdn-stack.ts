@@ -53,6 +53,14 @@ export class CdnStack extends cdk.Stack {
         functionAssociations,
       },
       additionalBehaviors: {
+        // API routes bypass basic auth
+        '/api/*': {
+          origin: albOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        },
         // Cache static assets
         '/_next/static/*': {
           origin: albOrigin,
